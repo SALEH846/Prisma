@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  // id Int @id @default(autoincrement())
+  id            String @id @default(uuid())
+  age           Int
+  name          String
+  email         String @unique
+  role          Role   @default(BASIC) // enum created at the end
+  writtenPosts  Post[] @relation("WrittenPosts")
+  favoritePosts Post[] @relation("FavoritedPosts")
+
+  // One-to-One relationship -- A user can have only one set of preferences
+  // and each set of preferences belong to one user only
+  userPreference   UserPreference? @relation(fields: [userPreferenceId], references: [id])
+  userPreferenceId String?         @unique
+
+  // Block level attributes
+  // We cannot have a user with same name and age
+  @@unique([age, name])
+  // We can also create an index for better read performance
+  @@index([email])
+}
+
+model UserPreference {
+  id           String  @id @default(uuid())
+  emailUpdates Boolean
+  user         User?
+}
+
+model Post {
+  id            String   @id @default(uuid())
+  title         String
+  averageRating Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // One-to-Many relationship -- A post can have only one author but an author can have
+  // multiple posts
+  author   User   @relation("WrittenPosts", fields: [authorId], references: [id])
+  authorId String
+
+  // One to many relationship -- 
+  favoritedBy   User?   @relation("FavoritedPosts", fields: [favoritedById], references: [id])
+  favoritedById String?
+
+  // Many-to-Many relationship -- A post can have multiple categories and a category
+  // can also have multiple posts
+  categories Category[]
+
+  // Block level attributes
+  // we can have a composite id
+  // @@id([title, authorId])
+}
+
+model Category {
+  id   String @id @default(uuid())
+  name String @unique
+
+  // Many-to-Many relationship -- A post can have multiple categories and a category
+  // can also have multiple posts
+  // The advantage that prisma provides us is that we don't have to manually create
+  // an intermediary table which we have to create when we are creating Many-to-Many
+  // relationships, prisma will take care of that for us
+  posts Post[]
+}
+
+enum Role {
+  BASIC
+  ADMIN
+}
